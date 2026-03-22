@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
         <StatCard 
           title="Total Revenue" 
           value={`₹${data?.totalRevenue.toLocaleString() || "0"}`} 
-          change="Collected Fines" 
+          change="Fines" 
           changeType="up" 
           icon={IndianRupee} 
           color="green" 

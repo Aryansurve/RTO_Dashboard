@@ -172,28 +172,28 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 1. Create two bridge connections using your .env links
+// 1. Setup Multi-Database Connections (Dual Bridge)
+// rtoDB handles Challans & Analytics
+// emergencyDB handles Drivers & Hospitals
 const rtoDB = mongoose.createConnection(process.env.MONGO_URI);
 const emergencyDB = mongoose.createConnection(process.env.MONGO_URI1);
 
-// 2. Link your models specifically to the correct database connection
-// This ensures Challans look in rto_database and Users look in emergency_app
+// 2. Register Models to the Correct Databases
 const Challan = rtoDB.model('Challan', require('./models/Challan').schema);
 const User = emergencyDB.model('User', require('./models/User').schema);
 const Hospital = emergencyDB.model('Hospital', require('./models/Hospital').schema);
 
-// Log successful connections
+// Log connections
 rtoDB.on('connected', () => console.log('✅ Connected to RTO Database (Challans)'));
 emergencyDB.on('connected', () => console.log('✅ Connected to Emergency Database (Drivers/Hospitals)'));
 
 // ==========================================
-// ROUTES
+// 🚨 EMERGENCY DRIVER ROUTES (Central Admin)
 // ==========================================
 
-// GET: Fetch Drivers (from Emergency DB) + Populate Hospital
+// GET: Fetch all Drivers and Map their Hospital data
 app.get('/api/drivers', async (req, res) => {
   try {
-    // Note: Population works perfectly here because both are on 'emergencyDB'
     const drivers = await User.find({ role: 'Driver' })
       .populate('hospitalId') 
       .sort({ createdAt: -1 });
@@ -204,7 +204,31 @@ app.get('/api/drivers', async (req, res) => {
   }
 });
 
-// GET: Fetch Challans (from RTO DB)
+// PATCH: Approve or Reject Driver Action (Central Admin)
+app.patch('/api/drivers/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body; // Expecting 'Verified' or 'Rejected'
+    
+    const updated = await User.findByIdAndUpdate(
+        req.params.id, 
+        { verificationStatus: status }, 
+        { new: true }
+    ).populate('hospitalId'); // Populate so the frontend gets the latest hospital info back
+
+    if (!updated) {
+        return res.status(404).json({ message: "Driver not found" });
+    }
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Error updating status", error: err.message });
+  }
+});
+
+// ==========================================
+// 🛡️ CHALLAN ROUTES (RTO DB)
+// ==========================================
+
+// GET: Fetch all challans
 app.get('/api/challans', async (req, res) => {
   try {
     const challans = await Challan.find().sort({ timestamp: -1 });
@@ -214,54 +238,14 @@ app.get('/api/challans', async (req, res) => {
   }
 });
 
-// PATCH: Approve/Reject Driver
-app.patch('/api/drivers/:id/status', async (req, res) => {
-  try {
-    const { status } = req.body;
-    const updated = await User.findByIdAndUpdate(req.params.id, { verificationStatus: status }, { new: true });
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ message: "Error", error: err.message });
-  }
-});
-
-// app.get("/api/ai-processing", async (req, res) => {
-//   try {
-//     console.log("API HIT");
-//     const latest = await Challan.findOne({
-//       video_url: { $exists: true, $ne: null, $ne: "" }
-//     }).sort({ timestamp: -1 });
-
-//     if (!latest) {
-//       return res.status(404).json({ message: "No data found" });
-//     }
-//     const latestVideoUrl = latest.video_url;
-//     console.log("Latest AI Processed Challan:", latestVideoUrl);
-
-//     const challans = await Challan.find({
-//       video_url: latestVideoUrl
-//     });
-
-//     const plates = [...new Set(challans.map(c => c.plate_number))];
-
-//     res.json({
-//       video_url: latestVideoUrl,
-//       plates
-//     });
-
-//   } catch (err) {
-//     res.status(500).json({
-//       message: "Error fetching AI processing data",
-//       error: err.message
-//     });
-//   }
-// });
-
+// ==========================================
+// 🤖 AI PROCESSING & ANALYTICS (Adv. Features)
+// ==========================================
 
 // GET: Fetch the latest AI Processing session data
 app.get('/api/ai-processing', async (req, res) => {
   try {
-    // 1. Find the very last record inserted to get the most recent video URL
+    // Find the very last record inserted to get the most recent video URL
     const latestRecord = await Challan.findOne().sort({ timestamp: -1 });
 
     if (!latestRecord) {
@@ -270,7 +254,7 @@ app.get('/api/ai-processing', async (req, res) => {
 
     res.json({
       video_url: latestRecord.video_url,
-      plates:  latestRecord.plate_number,
+      plates: latestRecord.plate_number,
       location: latestRecord.location,
       timestamp: latestRecord.timestamp
     });
@@ -279,7 +263,7 @@ app.get('/api/ai-processing', async (req, res) => {
   }
 });
 
-// GET: Fetch Aggregated Analytics Data
+// GET: Fetch Aggregated Analytics Data for Charts
 app.get('/api/analytics', async (req, res) => {
   try {
     // 1. Get Total Violations Count & Total Revenue
@@ -293,11 +277,10 @@ app.get('/api/analytics', async (req, res) => {
       }
     ]);
 
-    // Handle case where DB might be empty
     const totalViolations = stats.length > 0 ? stats[0].totalViolations : 0;
     const totalRevenue = stats.length > 0 ? stats[0].totalRevenue : 0;
 
-    // 2. Aggregate violations by date for the chart
+    // 2. Aggregate violations by date for the Recharts frontend
     const chartData = await Challan.aggregate([
       {
         $group: {
@@ -318,13 +301,16 @@ app.get('/api/analytics', async (req, res) => {
 
     res.json({
       totalViolations,
-      totalRevenue, // New field added
+      totalRevenue,
       chartData
     });
   } catch (err) {
     res.status(500).json({ message: "Error fetching analytics", error: err.message });
   }
 });
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
+// ==========================================
+// 🏁 SERVER START
+// ==========================================
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}`));
