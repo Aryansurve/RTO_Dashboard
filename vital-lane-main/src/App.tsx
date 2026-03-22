@@ -8,7 +8,6 @@ import DashboardPage from "@/pages/DashboardPage";
 import LiveTrackingPage from "@/pages/LiveTrackingPage";
 import AIProcessingPage from "@/pages/AIProcessingPage";
 import ChallansPage from "@/pages/ChallansPage";
-import AnalyticsPage from "@/pages/AnalyticsPage";
 import VerificationPage from "@/pages/VerificationPage";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/NotFound";
@@ -29,7 +28,7 @@ const App = () => (
                 <Route path="/tracking" element={<LiveTrackingPage />} />
                 <Route path="/ai-processing" element={<AIProcessingPage />} />
                 <Route path="/challans" element={<ChallansPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
+                {/* <Route path="/analytics" element={<AnalyticsPage />} /> */}
                 <Route path="/verification" element={<VerificationPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<NotFound />} />
