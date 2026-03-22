@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, IndianRupee, TrendingUp } from "lucide-react"; // Added Icons
 import StatCard from "@/components/StatCard";
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area
 } from "recharts";
 
-// Interface for our data
+// Updated Interface
 interface AnalyticsData {
   totalViolations: number;
+  totalRevenue: number; // Added this
   chartData: { date: string; violations: number }[];
 }
 
@@ -32,25 +33,39 @@ export default function AnalyticsPage() {
     fetchAnalytics();
   }, []);
 
-  if (loading) return <div className="p-10 text-center">Loading Analytics...</div>;
+  if (loading) return <div className="p-10 text-center text-muted-foreground">Loading Analytics...</div>;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Analytics</h2>
-        <p className="text-sm text-muted-foreground mt-1">Real-time system performance</p>
+        <p className="text-sm text-muted-foreground mt-1">Real-time system performance & revenue</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Violations Card */}
         <StatCard 
           title="Total Violations" 
           value={data?.totalViolations.toLocaleString() || "0"} 
-          change="Live from database" 
+          change="Live Records" 
           changeType="up" 
           icon={AlertTriangle} 
           color="red" 
           delay={0} 
         />
+
+        {/* REVENUE TRACKING CARD */}
+        <StatCard 
+          title="Total Revenue" 
+          value={`₹${data?.totalRevenue.toLocaleString() || "0"}`} 
+          change="Collected Fines" 
+          changeType="up" 
+          icon={IndianRupee} 
+          color="green" 
+          delay={100} 
+        />
+
+        {/* Optional: You can add more cards here like 'Avg Fine' if needed */}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

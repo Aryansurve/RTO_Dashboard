@@ -282,11 +282,22 @@ app.get('/api/ai-processing', async (req, res) => {
 // GET: Fetch Aggregated Analytics Data
 app.get('/api/analytics', async (req, res) => {
   try {
-    // 1. Get Total Violations Count
-    const totalViolations = await Challan.countDocuments();
+    // 1. Get Total Violations Count & Total Revenue
+    const stats = await Challan.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalViolations: { $sum: 1 },
+          totalRevenue: { $sum: "$fine_amount" }
+        }
+      }
+    ]);
+
+    // Handle case where DB might be empty
+    const totalViolations = stats.length > 0 ? stats[0].totalViolations : 0;
+    const totalRevenue = stats.length > 0 ? stats[0].totalRevenue : 0;
 
     // 2. Aggregate violations by date for the chart
-    // This groups by YYYY-MM-DD
     const chartData = await Challan.aggregate([
       {
         $group: {
@@ -295,7 +306,7 @@ app.get('/api/analytics', async (req, res) => {
           rawDate: { $first: "$timestamp" }
         }
       },
-      { $sort: { rawDate: 1 } }, // Sort chronologically
+      { $sort: { rawDate: 1 } },
       {
         $project: {
           _id: 0,
@@ -307,7 +318,8 @@ app.get('/api/analytics', async (req, res) => {
 
     res.json({
       totalViolations,
-      chartData // Format: [{ date: "Mar 01", violations: 10 }, ...]
+      totalRevenue, // New field added
+      chartData
     });
   } catch (err) {
     res.status(500).json({ message: "Error fetching analytics", error: err.message });
