@@ -11,6 +11,7 @@ const ChallanSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
   location: { type: String, required: true },
   fine_amount: { type: Number, required: true },
+  video_url: String,
   status: { type: String, default: 'Pending' } // Added to support your dashboard filters
 });
 

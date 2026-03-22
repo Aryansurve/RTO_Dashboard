@@ -225,6 +225,59 @@ app.patch('/api/drivers/:id/status', async (req, res) => {
   }
 });
 
+// app.get("/api/ai-processing", async (req, res) => {
+//   try {
+//     console.log("API HIT");
+//     const latest = await Challan.findOne({
+//       video_url: { $exists: true, $ne: null, $ne: "" }
+//     }).sort({ timestamp: -1 });
+
+//     if (!latest) {
+//       return res.status(404).json({ message: "No data found" });
+//     }
+//     const latestVideoUrl = latest.video_url;
+//     console.log("Latest AI Processed Challan:", latestVideoUrl);
+
+//     const challans = await Challan.find({
+//       video_url: latestVideoUrl
+//     });
+
+//     const plates = [...new Set(challans.map(c => c.plate_number))];
+
+//     res.json({
+//       video_url: latestVideoUrl,
+//       plates
+//     });
+
+//   } catch (err) {
+//     res.status(500).json({
+//       message: "Error fetching AI processing data",
+//       error: err.message
+//     });
+//   }
+// });
+
+
+// GET: Fetch the latest AI Processing session data
+app.get('/api/ai-processing', async (req, res) => {
+  try {
+    // 1. Find the very last record inserted to get the most recent video URL
+    const latestRecord = await Challan.findOne().sort({ timestamp: -1 });
+
+    if (!latestRecord) {
+      return res.status(404).json({ message: "No processing data found" });
+    }
+
+    res.json({
+      video_url: latestRecord.video_url,
+      plates:  latestRecord.plate_number,
+      location: latestRecord.location,
+      timestamp: latestRecord.timestamp
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching AI data", error: err.message });
+  }
+});
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
