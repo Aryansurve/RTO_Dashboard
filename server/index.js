@@ -278,6 +278,41 @@ app.get('/api/ai-processing', async (req, res) => {
     res.status(500).json({ message: "Error fetching AI data", error: err.message });
   }
 });
+
+// GET: Fetch Aggregated Analytics Data
+app.get('/api/analytics', async (req, res) => {
+  try {
+    // 1. Get Total Violations Count
+    const totalViolations = await Challan.countDocuments();
+
+    // 2. Aggregate violations by date for the chart
+    // This groups by YYYY-MM-DD
+    const chartData = await Challan.aggregate([
+      {
+        $group: {
+          _id: { $dateToString: { format: "%b %d", date: "$timestamp" } },
+          violations: { $sum: 1 },
+          rawDate: { $first: "$timestamp" }
+        }
+      },
+      { $sort: { rawDate: 1 } }, // Sort chronologically
+      {
+        $project: {
+          _id: 0,
+          date: "$_id",
+          violations: 1
+        }
+      }
+    ]);
+
+    res.json({
+      totalViolations,
+      chartData // Format: [{ date: "Mar 01", violations: 10 }, ...]
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching analytics", error: err.message });
+  }
+});
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 

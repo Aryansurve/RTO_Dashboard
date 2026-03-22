@@ -7,7 +7,6 @@ import {
 
 const navItems = [
   { title: "Dashboard", path: "/", icon: LayoutDashboard },
-  { title: "Live Tracking", path: "/tracking", icon: MapPin },
   { title: "AI Processing", path: "/ai-processing", icon: Cpu },
   { title: "Challans", path: "/challans", icon: FileText },
   { title: "Analytics", path: "/analytics", icon: BarChart3 },
