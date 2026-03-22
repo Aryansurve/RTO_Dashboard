@@ -263,46 +263,115 @@ app.get('/api/ai-processing', async (req, res) => {
   }
 });
 
+
 // GET: Fetch Aggregated Analytics Data for Charts
+// app.get('/api/analytics', async (req, res) => {
+//   try {
+//     // 1. Get Challan Stats (Total Count & Revenue) from rtoDB
+//     const stats = await Challan.aggregate([
+//       {
+//         $group: {
+//           _id: null,
+//           totalViolations: { $sum: 1 },
+//           totalRevenue: { $sum: "$fine_amount" }
+//         }
+//       }
+//     ]);
+
+//     const totalViolations = stats.length > 0 ? stats[0].totalViolations : 0;
+//     const totalRevenue = stats.length > 0 ? stats[0].totalRevenue : 0;
+
+//     // 2. Get User & Hospital Counts from emergencyDB
+//     const totalUsers = await User.countDocuments();
+//     const totalHospitals = await Hospital.countDocuments();
+
+//     // 3. Aggregate violations by date for the Recharts frontend
+//     const chartData = await Challan.aggregate([
+//       {
+//         $group: {
+//           _id: { $dateToString: { format: "%b %d", date: "$timestamp" } },
+//           violations: { $sum: 1 },
+//           rawDate: { $first: "$timestamp" }
+//         }
+//       },
+//       { $sort: { rawDate: 1 } },
+//       {
+//         $project: {
+//           _id: 0,
+//           date: "$_id",
+//           violations: 1
+//         }
+//       }
+//     ]);
+
+//     // 4. Send combined response
+//     res.json({
+//       totalViolations,
+//       totalRevenue,
+//       totalUsers,     // New field
+//       totalHospitals, // New field
+//       chartData
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: "Error fetching analytics", error: err.message });
+//   }
+// });
+
+// GET: Fetch Aggregated Analytics Data
 app.get('/api/analytics', async (req, res) => {
   try {
-    // 1. Get Total Violations Count & Total Revenue
-    const stats = await Challan.aggregate([
+    // 1. Existing Stats (Challans) from rtoDB
+    const stats = await Challan.aggregate([{
+      $group: { _id: null, totalViolations: { $sum: 1 }, totalRevenue: { $sum: "$fine_amount" } }
+    }]);
+    const totalViolations = stats.length > 0 ? stats[0].totalViolations : 0;
+    const totalRevenue = stats.length > 0 ? stats[0].totalRevenue : 0;
+
+    // 2. Counts from emergencyDB
+    const totalUsers = await User.countDocuments();
+    const totalHospitals = await Hospital.countDocuments();
+
+    // 3. NEW: Users per Hospital Aggregation (emergencyDB)
+    const usersPerHospital = await User.aggregate([
+      { $match: { role: 'Driver' } }, // Only count drivers
       {
         $group: {
-          _id: null,
-          totalViolations: { $sum: 1 },
-          totalRevenue: { $sum: "$fine_amount" }
+          _id: "$hospitalId",
+          userCount: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: "hospitals", // Ensure this matches your MongoDB collection name
+          localField: "_id",
+          foreignField: "_id",
+          as: "hospitalDetails"
+        }
+      },
+      { $unwind: "$hospitalDetails" },
+      {
+        $project: {
+          _id: 0,
+          name: "$hospitalDetails.name",
+          value: "$userCount"
         }
       }
     ]);
 
-    const totalViolations = stats.length > 0 ? stats[0].totalViolations : 0;
-    const totalRevenue = stats.length > 0 ? stats[0].totalRevenue : 0;
-
-    // 2. Aggregate violations by date for the Recharts frontend
+    // 4. Timeline Data
     const chartData = await Challan.aggregate([
-      {
-        $group: {
-          _id: { $dateToString: { format: "%b %d", date: "$timestamp" } },
-          violations: { $sum: 1 },
-          rawDate: { $first: "$timestamp" }
-        }
-      },
+      { $group: { _id: { $dateToString: { format: "%b %d", date: "$timestamp" } }, violations: { $sum: 1 }, rawDate: { $first: "$timestamp" } } },
       { $sort: { rawDate: 1 } },
-      {
-        $project: {
-          _id: 0,
-          date: "$_id",
-          violations: 1
-        }
-      }
+      { $project: { _id: 0, date: "$_id", violations: 1 } }
     ]);
 
     res.json({
       totalViolations,
       totalRevenue,
-      chartData
+      totalUsers,
+      totalHospitals,
+      chartData,
+      usersPerHospital // New data array: [{ name: "Fortis", value: 5 }, ...]
     });
   } catch (err) {
     res.status(500).json({ message: "Error fetching analytics", error: err.message });

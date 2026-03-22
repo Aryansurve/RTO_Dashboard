@@ -9,7 +9,6 @@ const navItems = [
   { title: "Dashboard", path: "/", icon: LayoutDashboard },
   { title: "AI Processing", path: "/ai-processing", icon: Cpu },
   { title: "Challans", path: "/challans", icon: FileText },
-  { title: "Analytics", path: "/analytics", icon: BarChart3 },
   { title: "Verification", path: "/verification", icon: ShieldCheck },
   { title: "Settings", path: "/settings", icon: Settings },
 ];
